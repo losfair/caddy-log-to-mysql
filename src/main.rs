@@ -71,6 +71,8 @@ async fn async_main() -> Result<()> {
 
   sqlx::migrate!().run(&db).await?;
 
+  eprintln!("Importing from file {}.", opt.input.to_string_lossy());
+
   // The file id is the BLAKE3 hash of the first line
   let mut file_id: Option<String> = None;
   let insertion_concurrency = Arc::new(Semaphore::new(50));
@@ -87,7 +89,13 @@ async fn async_main() -> Result<()> {
     if line.is_empty() {
       continue;
     }
-    let pre_decoded: serde_json::Value = serde_json::from_str(&line)?;
+    let pre_decoded: serde_json::Value = match serde_json::from_str(&line) {
+      Ok(x) => x,
+      Err(e) => {
+        tracing::error!(line_no, error = %e, "json decode error");
+        continue;
+      }
+    };
     if !pre_decoded
       .get("msg")
       .and_then(|x| x.as_str())
