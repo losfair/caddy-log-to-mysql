@@ -9,6 +9,7 @@ use std::{
 };
 
 use anyhow::Result;
+use chrono::NaiveDateTime;
 use indexmap::IndexMap;
 use serde::Deserialize;
 use sqlx::MySqlPool;
@@ -128,7 +129,7 @@ async fn async_main() -> Result<()> {
       "#,
         file_id,
         line_no as u64,
-        entry.ts,
+        NaiveDateTime::from_timestamp(entry.ts as i64, (entry.ts.fract() * 1_000_000_000.0) as u32),
         entry.user_id.as_ref().map(|x| x.as_str()).unwrap_or(""),
         entry.duration,
         entry.size,

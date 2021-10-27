@@ -1,8 +1,7 @@
--- Add migration script here
 create table logs(
   file_id varchar(255) not null,
   line_no int not null,
-  ts double not null,
+  ts datetime(6) not null,
   user_id varchar(255) not null,
   duration double not null,
   size int not null,
@@ -17,5 +16,6 @@ create table logs(
   uri text not null,
   req_headers json not null,
 
-  primary key (file_id, line_no)
+  primary key (file_id, line_no),
+  index by_ts (ts)
 );
