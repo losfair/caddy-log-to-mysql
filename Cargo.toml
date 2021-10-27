@@ -2,6 +2,10 @@
 name = "caddy-log-to-mysql"
 version = "0.1.0"
 edition = "2018"
+license = "MIT"
+repository = "https://github.com/losfair/caddy-log-to-mysql"
+description = "Import Caddy logs to MySQL for analysis."
+authors = ["Heyang Zhou <heyang.zhou@icloud.com>"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
