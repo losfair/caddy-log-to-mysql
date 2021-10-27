@@ -18,3 +18,4 @@ indexmap = { version = "1.7.0", features = ["serde-1"] }
 sqlx = { version = "0.5", features = [ "runtime-tokio-rustls", "offline", "mysql", "chrono" ] }
 blake3 = "1.1.0"
 chrono = "0.4"
+indicatif = "0.16.2"

@@ -11,6 +11,7 @@ use std::{
 use anyhow::Result;
 use chrono::NaiveDateTime;
 use indexmap::IndexMap;
+use indicatif::{ProgressBar, ProgressStyle};
 use serde::Deserialize;
 use sqlx::MySqlPool;
 use structopt::StructOpt;
@@ -19,7 +20,7 @@ use tokio::sync::{RwLock, Semaphore};
 /// Import Caddy logs to MySQL for analysis.
 #[derive(StructOpt)]
 struct Opt {
-  /// Path to the log file.
+  /// Path to Caddy's log file in JSON format.
   input: PathBuf,
 
   /// MySQL connection string.
@@ -47,6 +48,12 @@ struct RequestInfo {
   headers: IndexMap<String, Vec<String>>,
 }
 
+#[derive(Default)]
+struct Stats {
+  rows_inserted: AtomicU64,
+  rows_processed: AtomicU64,
+}
+
 fn main() -> Result<()> {
   tokio::runtime::Builder::new_current_thread()
     .enable_all()
@@ -68,7 +75,11 @@ async fn async_main() -> Result<()> {
   let mut file_id: Option<String> = None;
   let insertion_concurrency = Arc::new(Semaphore::new(50));
   let insertion_busy = Arc::new(RwLock::new(()));
-  let rows_inserted: Arc<AtomicU64> = Arc::new(AtomicU64::new(0));
+  let stats: Arc<Stats> = Arc::new(Default::default());
+
+  let spinner_style = ProgressStyle::default_spinner().template("{spinner} {wide_msg}");
+  let pb = ProgressBar::new(0);
+  pb.set_style(spinner_style);
 
   for (i, line) in logfile.lines().enumerate() {
     let line_no = i + 1;
@@ -103,7 +114,8 @@ async fn async_main() -> Result<()> {
     let permit = insertion_concurrency.clone().acquire_owned().await.unwrap();
     let busy = insertion_busy.clone().read_owned().await;
     let db = db.clone();
-    let rows_inserted = rows_inserted.clone();
+    let stats = stats.clone();
+    let pb = pb.clone();
     tokio::spawn(async move {
       let res = sqlx::query!(
         r#"
@@ -147,12 +159,19 @@ async fn async_main() -> Result<()> {
 
       match res {
         Ok(res) => {
-          if res.rows_affected() == 0 {
+          let rows_inserted = if res.rows_affected() == 0 {
             tracing::debug!(line_no, "did not insert log entry");
+            stats.rows_inserted.load(Ordering::Relaxed)
           } else {
-            rows_inserted.fetch_add(1, Ordering::Relaxed);
             tracing::debug!(line_no, "inserted log entry");
-          }
+            stats.rows_inserted.fetch_add(1, Ordering::Relaxed) + 1
+          };
+          let rows_processed = stats.rows_processed.fetch_add(1, Ordering::Relaxed) + 1;
+          pb.set_message(format!(
+            "Adding logs... {}/{}",
+            rows_inserted, rows_processed
+          ));
+          pb.inc(1);
         }
         Err(e) => {
           tracing::error!(line_no, %file_id, error = %e, "failed to insert log entry");
@@ -164,10 +183,8 @@ async fn async_main() -> Result<()> {
     });
   }
   insertion_busy.write().await;
-  eprintln!(
-    "Success. {} entries inserted.",
-    rows_inserted.load(Ordering::Relaxed)
-  );
+  pb.finish();
+  eprintln!("Success.");
 
   Ok(())
 }
