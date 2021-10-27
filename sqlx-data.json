@@ -1,0 +1,13 @@
+{
+  "db": "MySQL",
+  "226e7a2e5386d24366b40e59fe087fd29c76926e984bc5ad0dafe69f3c421b6d": {
+    "query": "\n        insert ignore into logs\n        (\n          file_id,\n          line_no,\n          ts,\n          user_id,\n          duration,\n          size,\n          status_code,\n          resp_headers,\n          remote_addr,\n          proto,\n          method,\n          host,\n          uri,\n          req_headers\n        ) values(\n          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?\n        )\n      ",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Right": 14
+      },
+      "nullable": []
+    }
+  }
+}
